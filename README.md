@@ -10,7 +10,7 @@ Remove the `.example` part from the name of the files in `.github/workflow` for 
 
 You can delete `.github` if you are not planning to use the GitHub pipeline.
 
-## Run the OS Update Workflow Using GitHub Actions
+## Run the OS update workflow using GitHub Actions
 
 1. Ensure you have the required secrets (`SSH_USER`, `EC2_HOST`, and `SSH_PRIVATE_KEY`) set up in your repository's Secrets settings.
 2. Ensure the EC2 instance's security group allows incoming SSH connections from the GitHub Actions runner IP addresses.
@@ -41,7 +41,7 @@ Remove the `.example` part from the name of the files in the root or designated 
 
 You can delete `.gitlab-ci.yml` if you are not planning to use the GitLab pipeline.
 
-## Run the OS Update Workflow Using GitLab CI/CD
+## Run the OS update workflow using GitLab CI/CD
 
 1. Ensure you have the required CI/CD variables (`SSH_USER`, `EC2_HOST`, and `SSH_PRIVATE_KEY`) set up in your GitLab project's settings.
 2. Ensure the EC2 instance's security group allows incoming SSH connections from the GitLab runner IP addresses.
