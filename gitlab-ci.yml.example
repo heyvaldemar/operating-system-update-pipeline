@@ -1,21 +1,26 @@
-image: ubuntu:latest
+# Manual trigger only, on main. An unattended `apt-get upgrade` on a
+# production host is a decision, not a schedule.
+image: ubuntu:24.04
 
 stages:
   - os_update
 
-# Commands to run before the main script
-before_script:
-  - apt-get update -y && apt-get install openssh-client -y
-  - eval $(ssh-agent -s)
-  - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
-  - mkdir -p ~/.ssh
-  - chmod 700 ~/.ssh
-
-# Define the job
 os_update:
   stage: os_update
-  script:
-    - ssh -o StrictHostKeyChecking=no $SSH_USER@$EC2_HOST "sudo apt-get update && sudo apt-get upgrade -y"
   when: manual
-  only:
-    - main
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  # SSH_USER, EC2_HOST and SSH_PRIVATE_KEY are CI/CD variables; the key is a
+  # "file" or a masked variable. They reach the shell as environment
+  # variables and are quoted there - nothing here interpolates into a command.
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq openssh-client >/dev/null
+    - install -d -m 700 ~/.ssh
+    - printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+    - chmod 600 ~/.ssh/id_ed25519
+    # The host key is fetched once and then ENFORCED below. Scanning it and
+    # then passing StrictHostKeyChecking=no is the same as never scanning it.
+    - ssh-keyscan -H "$EC2_HOST" > ~/.ssh/known_hosts 2>/dev/null
+    - test -s ~/.ssh/known_hosts
+  script:
+    - ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o BatchMode=yes "$SSH_USER@$EC2_HOST" 'sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && (test -f /var/run/reboot-required && echo "REBOOT REQUIRED" || echo "no reboot needed")'

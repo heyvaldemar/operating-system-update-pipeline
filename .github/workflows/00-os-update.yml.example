@@ -1,39 +1,54 @@
-name: 'OS Update'
+name: OS Update
 
-# Defines the trigger for the workflow. In this case, it's set to manual trigger (`workflow_dispatch`)
+# Manual trigger only. An unattended `apt-get upgrade` on a production host is
+# a decision, not a schedule.
 on:
   workflow_dispatch:
     inputs:
-      # Input for the manual trigger to capture the reason for running the workflow
       reason:
-        description: 'Reason for run'     
+        description: Reason for run
         required: false
 
-env:
-  SSH_USER: ${{ secrets.SSH_USER }}
-  EC2_HOST: ${{ secrets.EC2_HOST }}
-  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+permissions:
+  contents: read
 
-# Defines a job named `os-update` within the workflow.
 jobs:
   os-update:
+    name: Update the operating system over SSH
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Secrets reach the shell as environment variables and are quoted there.
+    # Written as ${{ secrets.X }} inside `run:`, a value is pasted into the
+    # script before bash sees it: a hostname secret containing `; rm -rf ~`
+    # is executed, not connected to. Nothing in this file interpolates into
+    # a command.
+    env:
+      SSH_USER: ${{ secrets.SSH_USER }}
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      REASON: ${{ inputs.reason }}
 
     steps:
-      # Install necessary packages and set up SSH
-      - name: Install necessary packages, set up SSH and add server to known hosts
+      - name: Install the key and pin the host
+        # The runner image ships openssh-client. The host key is fetched once
+        # with ssh-keyscan and then ENFORCED: the connection below runs with
+        # StrictHostKeyChecking=yes, so a host that answers with a different
+        # key - a rebuilt instance, or something in between - is refused
+        # rather than updated. Scanning the key and then disabling the check
+        # is the same as never scanning it.
         run: |
-          sudo apt-get update -y
-          sudo apt-get install openssh-client -y
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
-          eval $(ssh-agent -s)
-          ssh-add ~/.ssh/id_rsa
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$EC2_HOST" > ~/.ssh/known_hosts 2>/dev/null
+          test -s ~/.ssh/known_hosts || { echo "::error::no host key from $EC2_HOST"; exit 1; }
 
-      # Execute OS update on the remote EC2 instance
-      - name: OS Update
+      - name: Update
+        # -i names the key: an agent started in the previous step does not
+        # survive into this one, so ssh-add there would have added a key to
+        # an agent nobody can reach.
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ env.SSH_USER }}@${{ env.EC2_HOST }} "sudo apt-get update && sudo apt-get upgrade -y"
+          [ -n "$REASON" ] && echo "reason: $REASON"
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=yes -o BatchMode=yes \
+            "$SSH_USER@$EC2_HOST" \
+            'sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && (test -f /var/run/reboot-required && echo "REBOOT REQUIRED" || echo "no reboot needed")'

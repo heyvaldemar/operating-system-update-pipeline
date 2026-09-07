@@ -1,0 +1,66 @@
+name: Verification
+
+# The pipelines in this repository ship as .example files and are never run
+# here - they need a host, a key and a decision. What CAN be checked is that
+# each one is a valid pipeline the moment the suffix comes off.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: verification-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: The examples are valid pipelines once renamed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: actionlint on this workflow
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt rhysd/actionlint:1.7.12 -color
+
+      - name: actionlint on the GitHub Actions example, with the suffix removed
+        # Copied into a throwaway repository under its real name, because
+        # actionlint reads .github/workflows/*.yml and nothing else.
+        run: |
+          tmp="$(mktemp -d)"
+          mkdir -p "$tmp/.github/workflows"
+          for f in .github/workflows/*.yml.example; do
+            cp "$f" "$tmp/.github/workflows/$(basename "$f" .example)"
+          done
+          git -C "$tmp" init -q
+          docker run --rm -v "$tmp:/mnt" -w /mnt rhysd/actionlint:1.7.12 -color
+          # Nothing in the example may interpolate a secret or an input into
+          # a command: that is how a hostname secret becomes a shell command.
+          if grep -nE '^\s*(run:|- ).*\$\{\{ *(secrets|inputs|github\.event)\.' .github/workflows/*.yml.example; then
+            echo "::error::an expression is interpolated into a run step; pass it through env: instead"
+            exit 1
+          fi
+
+      - name: The GitLab example parses and has the shape GitLab expects
+        run: |
+          python3 - <<'PY'
+          import yaml
+          d = yaml.safe_load(open("gitlab-ci.yml.example"))
+          jobs = {k: v for k, v in d.items() if isinstance(v, dict) and "script" in v}
+          assert jobs, "no job with a script"
+          for name, job in jobs.items():
+              assert job.get("stage") in d.get("stages", []), f"{name}: stage not declared"
+              assert job.get("when") == "manual", f"{name}: an OS upgrade must be a manual job"
+              text = "\n".join(job.get("before_script", []) + job["script"])
+              assert "StrictHostKeyChecking=no" not in text, f"{name}: host key checking is disabled"
+          print("gitlab example OK:", ", ".join(jobs))
+          PY
