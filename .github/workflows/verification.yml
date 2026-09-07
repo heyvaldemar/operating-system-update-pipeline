@@ -33,16 +33,18 @@ jobs:
           docker run --rm -v "$PWD:/mnt" -w /mnt rhysd/actionlint:1.7.12 -color
 
       - name: actionlint on the GitHub Actions example, with the suffix removed
-        # Copied into a throwaway repository under its real name, because
-        # actionlint reads .github/workflows/*.yml and nothing else.
+        # Copied beside this workflow under its real name for the duration of
+        # the check, because actionlint reads .github/workflows/*.yml inside a
+        # git repository and nothing else — a throwaway directory mounted
+        # into the container is not one, as the first run of this job found.
         run: |
-          tmp="$(mktemp -d)"
-          mkdir -p "$tmp/.github/workflows"
+          copied=()
           for f in .github/workflows/*.yml.example; do
-            cp "$f" "$tmp/.github/workflows/$(basename "$f" .example)"
+            t=".github/workflows/$(basename "$f" .example)"
+            cp "$f" "$t"; copied+=("$t")
           done
-          git -C "$tmp" init -q
-          docker run --rm -v "$tmp:/mnt" -w /mnt rhysd/actionlint:1.7.12 -color
+          trap 'rm -f "${copied[@]}"' EXIT
+          docker run --rm -v "$PWD:/mnt" -w /mnt rhysd/actionlint:1.7.12 -color
           # Nothing in the example may interpolate a secret or an input into
           # a command: that is how a hostname secret becomes a shell command.
           if grep -nE '^\s*(run:|- ).*\$\{\{ *(secrets|inputs|github\.event)\.' .github/workflows/*.yml.example; then
