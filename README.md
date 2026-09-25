@@ -1,5 +1,7 @@
 # Operating System Update Pipeline Using GitHub Actions or GitLab CI/CD
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14900/badge)](https://www.bestpractices.dev/projects/14900)
+
 This guide outlines the process to set up and execute Operating System updates using either GitHub Actions or GitLab CI/CD.
 
 ## GitHub Actions
