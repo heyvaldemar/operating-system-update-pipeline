@@ -66,3 +66,20 @@ jobs:
               assert "StrictHostKeyChecking=no" not in text, f"{name}: host key checking is disabled"
           print("gitlab example OK:", ", ".join(jobs))
           PY
+
+  test:
+    name: Both examples update a real host and refuse an impostor
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run each example's own steps against a container with sshd
+        # The steps are lifted out of the YAML and run as written: the upgrade
+        # lands on the target, a host with no key stops the job, and a host
+        # whose key changed between the scan and the login is refused.
+        run: bash tests/e2e-os-update.sh
+
+      - name: Every promise above, broken on purpose, is noticed
+        run: ./tests/plant-violations.py -- bash tests/e2e-os-update.sh

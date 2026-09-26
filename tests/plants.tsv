@@ -1,0 +1,6 @@
+# file	old	new	what the test must notice
+".github/workflows/00-os-update.yml.example"	"'sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && ("	"'sudo apt-get update && ("	"the GitHub example no longer upgrades anything"
+".github/workflows/00-os-update.yml.example"	" && (test -f /var/run/reboot-required && echo \"REBOOT REQUIRED\" || echo \"no reboot needed\")"	""	"the GitHub example stops saying whether a reboot is needed"
+".github/workflows/00-os-update.yml.example"	"-o StrictHostKeyChecking=yes"	"-o StrictHostKeyChecking=no"	"the GitHub example logs in to a host whose key changed after the scan"
+"gitlab-ci.yml.example"	"'sudo apt-get update && sudo DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && ("	"'sudo apt-get update && ("	"the GitLab example no longer upgrades anything"
+"gitlab-ci.yml.example"	"-o StrictHostKeyChecking=yes"	"-o StrictHostKeyChecking=no"	"the GitLab example logs in to a host whose key changed after the scan"

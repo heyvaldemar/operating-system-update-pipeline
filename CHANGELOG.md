@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Added
+
+- **An end-to-end test of both examples.** Their own steps run against a
+  container with sshd: the upgrade lands, a host with no key stops the job,
+  and a host whose key changed after the scan is refused, which is the
+  man-in-the-middle case the enforced host key was added for.
+- **Planted violations for that test.** Each promise is broken on a copy,
+  host-key checking turned off among them, and the test has to fail. Both run
+  in the Verification workflow on every push.
 
 ## [1.0.0] - 2026-09-18
 

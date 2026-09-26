@@ -67,6 +67,31 @@ You can delete `.gitlab-ci.yml` if you are not planning to use the GitLab pipeli
 
 ---
 
+## Testing
+
+The examples ship with a `.example` suffix and never run against a real host
+here, but their steps do. `tests/e2e-os-update.sh` lifts the shell out of each
+example and runs it as written, in a runner container, against a container with
+sshd and a sudo account:
+
+- the upgrade runs on the target, and the job says whether a reboot is needed;
+- a host that hands over no host key stops the job before anything runs on it;
+- a host whose key changed between the scan and the login is refused. The test
+  moves the target's network name to an impostor with fresh host keys and the
+  same account, which is the man-in-the-middle case `StrictHostKeyChecking=yes`
+  exists for.
+
+`tests/plant-violations.py` then breaks each of those promises on a copy, for
+example by turning host-key checking off, and requires the test to fail. Both
+run on every push in the Verification workflow.
+
+```bash
+bash tests/e2e-os-update.sh
+./tests/plant-violations.py -- bash tests/e2e-os-update.sh
+```
+
+Both need Docker.
+
 ## About the maintainer
 
 <div align="center">
