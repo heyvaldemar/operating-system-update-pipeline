@@ -72,7 +72,10 @@ run_example() {
   sed '1,/^#---CONNECT---$/d' "$WORK/all.sh" > "$WORK/connect.sh"
   docker cp "$WORK/prep.sh" "$RUN-runner:/prep.sh"; docker cp "$WORK/connect.sh" "$RUN-runner:/connect.sh"
   docker exec "$RUN-runner" rm -rf /root/.ssh
-  local env=(-e SSH_USER=deploy -e EC2_HOST="$2" -e SSH_PRIVATE_KEY="$(cat "$WORK/key")" -e REASON=e2e)
+  # The key reaches docker by name: as -e NAME=value it was in docker's
+  # arguments, where every user on the machine reads it with ps.
+  SSH_PRIVATE_KEY="$(cat "$WORK/key")"; export SSH_PRIVATE_KEY
+  local env=(-e SSH_USER=deploy -e EC2_HOST="$2" -e SSH_PRIVATE_KEY -e REASON=e2e)
   docker exec "${env[@]}" "$RUN-runner" bash -e /prep.sh 2>&1 || return $?
   [ -z "${3:-}" ] || "$3"
   docker exec "${env[@]}" "$RUN-runner" bash -e /connect.sh 2>&1
