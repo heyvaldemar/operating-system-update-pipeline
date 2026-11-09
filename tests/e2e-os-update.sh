@@ -75,7 +75,8 @@ run_example() {
   # The key reaches docker by name: as -e NAME=value it was in docker's
   # arguments, where every user on the machine reads it with ps.
   SSH_PRIVATE_KEY="$(cat "$WORK/key")"; export SSH_PRIVATE_KEY
-  local env=(-e SSH_USER=deploy -e EC2_HOST="$2" -e SSH_PRIVATE_KEY -e REASON=e2e)
+  EC2_HOST="$2"; export EC2_HOST
+  local env=(-e SSH_USER=deploy -e EC2_HOST -e SSH_PRIVATE_KEY -e REASON=e2e)
   docker exec "${env[@]}" "$RUN-runner" bash -e /prep.sh 2>&1 || return $?
   [ -z "${3:-}" ] || "$3"
   docker exec "${env[@]}" "$RUN-runner" bash -e /connect.sh 2>&1

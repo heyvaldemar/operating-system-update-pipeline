@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_(no unreleased changes yet)_
+### Changed
+
+- **The e2e passes `EC2_HOST` to the runner container by name, like `SSH_PRIVATE_KEY`.** Not a secret, but fleet conformance now flags any value expanded into `-e NAME=`. Test only.
 
 ## [1.1.0] - 2026-09-26
 
